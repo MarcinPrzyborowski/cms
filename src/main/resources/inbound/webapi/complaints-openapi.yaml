@@ -1,0 +1,168 @@
+openapi: 3.0.3
+info:
+  title: Complaint Management API
+  description: A REST API for managing product complaints
+  version: 1.0.1
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+paths:
+  /complaints:
+    post:
+      tags:
+        - complaints
+      summary: Submit a new complaint
+      operationId: reportComplaint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewComplaintRequest'
+      responses:
+        '201':
+          description: Complaint successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplaintResponse'
+        '202':
+          description: Complaint partially created (e.g., country detection failed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplaintResponse'
+        '400':
+          description: Invalid input
+
+    get:
+      tags:
+        - complaints
+      summary: Get a paginated list of complaints (infinite scroll)
+      operationId: findComplaints
+      parameters:
+        - in: query
+          name: lastId
+          required: false
+          description: The ID of the last complaint from the previous page (for infinite scrolling)
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: limit
+          required: false
+          description: Number of complaints to return (default is 10)
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: A list of complaints
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplaintListResponse'
+
+  /complaints/{complaintId}:
+    patch:
+      tags:
+        - complaints
+      summary: Edit complaint content
+      operationId: updateComplaint
+      parameters:
+        - in: path
+          name: complaintId
+          required: true
+          description: The UUID of the complaint to update
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditComplaintRequest'
+      responses:
+        '200':
+          description: Complaint successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplaintResponse'
+        '404':
+          description: Complaint not found
+
+components:
+  schemas:
+    NewComplaintRequest:
+      type: object
+      required:
+        - productId
+        - content
+        - reporter
+        - ip
+      properties:
+        productId:
+          type: string
+          format: uuid
+          description: ID of the product being complained about
+        content:
+          type: string
+          description: Content of the complaint
+        reporter:
+          type: string
+          format: uuid
+          description: Unique identifier of the user reporting the complaint
+        ip:
+          type: string
+          format: ipv4
+          description: IP address of the reporter (used for country detection)
+
+    EditComplaintRequest:
+      type: object
+      required:
+        - content
+        - reporter
+      properties:
+        content:
+          type: string
+          description: New content for the complaint
+
+    ComplaintResponse:
+      type: object
+      properties:
+        complaintId:
+          type: string
+          format: uuid
+          description: Unique ID of the complaint
+        productId:
+          type: string
+          format: uuid
+          description: ID of the product
+        content:
+          type: string
+          description: Complaint contentF
+        reporter:
+          type: string
+          format: uuid
+          description: ID of the person who submitted the complaint
+        country:
+          type: string
+          description: Country of origin, determined from IP
+        counter:
+          type: integer
+          format: int64
+          description: Number of times this complaint has been reported (by the same user for same product)
+
+    ComplaintListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          description: List of complaint items
+          items:
+            $ref: '#/components/schemas/ComplaintResponse'
+
